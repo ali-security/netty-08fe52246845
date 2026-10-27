@@ -4,6 +4,9 @@ ARG gcc_version=10.2-2020.11
 ENV GCC_VERSION $gcc_version
 ENV SOURCE_DIR /root/source
 
+# mirrorlist.centos.org is gone, CentOS 7.6.1810 packages only live in the vault now.
+RUN sed -i -e 's/^mirrorlist/#mirrorlist/g' -e 's/^#baseurl=http:\/\/mirror.centos.org\/centos\/$releasever\//baseurl=https:\/\/vault.centos.org\/7.6.1810\//g' /etc/yum.repos.d/CentOS-Base.repo
+
 # Install requirements
 RUN yum install -y wget tar git make redhat-lsb-core autoconf automake libtool glibc-devel libaio-devel openssl-devel apr-devel lksctp-tools unzip zip
 
@@ -14,7 +17,10 @@ RUN mkdir $SOURCE_DIR
 WORKDIR $SOURCE_DIR
 
 # Install aarch64 gcc 10.2 toolchain
-RUN wget https://developer.arm.com/-/media/Files/downloads/gnu-a/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz && \
+# CentOS 7.6's CA bundle predates developer.arm.com's current GlobalSign chain, so skip the TLS check
+# and pin the tarball by sha256 instead (md5 matches ARM's published .asc).
+RUN wget --no-check-certificate https://developer.arm.com/-/media/Files/downloads/gnu-a/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz && \
+   echo "fe7f72330216612de44891ebe5e228eed7c0c051ac090c395b2b33115c6f5408  gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz" | sha256sum -c - && \
    tar xvf gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz && mv gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu /opt/
 ENV PATH="/opt/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu/bin:${PATH}"
 
